@@ -43,6 +43,8 @@ static int g35_device_proc(G35DevicePtr g35dev)
                 intf = &cfg_desc->interface[i];
                 for (d = 0; d < intf->num_altsetting; ++d) {
                     intfd = &intf->altsetting[d];
+                    if (intfd->bInterfaceClass != LIBUSB_CLASS_HID)
+                        continue;
                     if (libusb_kernel_driver_active(g35_devh,
                                 intfd->bInterfaceNumber))
                         libusb_detach_kernel_driver(g35_devh,
