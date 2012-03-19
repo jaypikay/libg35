@@ -87,6 +87,8 @@ int g35_init()
     if (res)
         return res;
 
+    libusb_set_debug(usb_ctx, 3);
+
     devc = libusb_get_device_list(usb_ctx, &dlist);
     if (devc < 1)
         return -1;
@@ -108,4 +110,38 @@ void g35_destroy()
         libusb_reset_device(g35_devh);
         libusb_close(g35_devh);
     }
+}
+
+static void processG35KeyPressEvent(unsigned int *pressed_keys,
+        unsigned char *buffer)
+{
+    int i = 0;
+
+    *pressed_keys = 0;
+    if (buffer[0] == G35_KEY_EVENT) {
+        if ((buffer[1] & 0x01) == G35_KEY_VOLUP)
+            *pressed_keys |= G35_KEY_VOLUP;
+        if ((buffer[1] & 0x02) == G35_KEY_VOLDOWN)
+            *pressed_keys |= G35_KEY_VOLDOWN;
+        if ((buffer[1] & 0x04) == G35_KEY_G1)
+            *pressed_keys |= G35_KEY_G1;
+        if ((buffer[1] & 0x08) == G35_KEY_G2)
+            *pressed_keys |= G35_KEY_G2;
+        if ((buffer[1] & 0x10) == G35_KEY_G3)
+            *pressed_keys |= G35_KEY_G3;
+    }
+}
+
+int g35_keypressed(unsigned int *pressed_keys)
+{
+    unsigned char buffer[G35_KEYS_READ_LENGTH];
+    int transferred = 0;
+    int ret = 0;
+
+    ret = libusb_interrupt_transfer(g35_devh, G35_KEYS_ENDPOINT | 0x80, buffer,
+            G35_KEYS_READ_LENGTH, &transferred, 0);
+
+    processG35KeyPressEvent(pressed_keys, buffer);
+
+    return transferred;
 }
