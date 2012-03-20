@@ -1,21 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
 project(libg35)
 
-if(NOT LIBUSB_FOUND)
-    if(LIBUSB_INCLUDE_DIRS AND LIBUSB_LIBRARIES)
-        set(LIBUSB_FOUND TRUE)
-    endif(LIBUSB_INCLUDE_DIRS AND LIBUSB_LIBRARIES)
-endif(NOT LIBUSB_FOUND)
-
-if(LIBUSB_FOUND)
-    if(NOT LIBUSB_FIND_QUIETLY)
-        message(STATUS "Found LIBUSB: ${LIBUSB_LIBRARIES}")
-    endif (NOT LIBUSB_FIND_QUIETLY)
-else(LIBUSB_FOUND)
-    if(LIBUSB_FIND_REQUIRED)
-        message(FATAL_ERROR "Could not find LIBUSB")
-    endif(LIBUSB_FIND_REQUIRED)
-endif(LIBUSB_FOUND)
-
 add_library(g35 SHARED g35.c g35uinput.c)
 target_link_libraries(g35 usb)

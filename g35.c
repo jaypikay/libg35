@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <string.h>
-
-#include <libusb-1.0/libusb.h>
+#include <usb.h>
 
 #include "libg35.h"
 
@@ -12,104 +12,109 @@ static G35DeviceRec g35_devices[] = {
     { },
 };
 
-static libusb_context *usb_ctx;
-static libusb_device_handle *g35_devh;
-
-static ssize_t devc;
-static libusb_device **dlist;
+static usb_dev_handle *g35_devh;
 
 
-static int g35_device_proc(G35DevicePtr g35dev)
+static usb_dev_handle *g35_find_device(G35DeviceRec g35dev)
 {
-    struct libusb_device_descriptor dev_desc;
-    struct libusb_config_descriptor *cfg_desc;
-    const struct libusb_interface *intf;
-    const struct libusb_interface_descriptor *intfd;
+    int c, i, a;
+    struct usb_bus *bus = 0;
+    struct usb_device *dev = 0;
+    char name_buffer[65535];
+    int ret;
 
-    int i, m, c, d ,e;
+    for (bus = usb_busses; bus; bus = bus->next) {
+        for (dev = bus->devices; dev; dev = dev->next) {
 
-    for (m = 0; m < devc; ++m) {
-        if (libusb_get_device_descriptor(dlist[m], &dev_desc))
-            continue;
-        if ((dev_desc.idVendor != g35dev->vendor_id)
-                || (dev_desc.idProduct != g35dev->product_id))
-            continue;
-        if (libusb_open(dlist[m], &g35_devh))
-            continue;
-
-        for (c = 0; c < dev_desc.bNumConfigurations; ++c) {
-            if (libusb_get_config_descriptor(dlist[m], c, &cfg_desc))
+            if (dev->descriptor.idVendor != g35dev.vendor_id
+                    || dev->descriptor.idProduct != g35dev.product_id)
                 continue;
-            for (i = 0; i < cfg_desc->bNumInterfaces; ++i) {
-                intf = &cfg_desc->interface[i];
-                for (d = 0; d < intf->num_altsetting; ++d) {
-                    intfd = &intf->altsetting[d];
-                    if (intfd->bInterfaceClass != LIBUSB_CLASS_HID)
-                        continue;
-                    if (libusb_kernel_driver_active(g35_devh,
-                                intfd->bInterfaceNumber))
-                        libusb_detach_kernel_driver(g35_devh,
-                                intfd->bInterfaceNumber);
-                    libusb_set_configuration(g35_devh,
-                            cfg_desc->bConfigurationValue);
-                    libusb_claim_interface(g35_devh,
-                            intfd->bInterfaceNumber);
 
-                    e = 0;
-                    while (libusb_claim_interface(g35_devh,
-                                intfd->bInterfaceNumber) && (e << 10)) {
-                        sleep(1);
-                        ++e;
-                    }
-                }
-
+            usb_dev_handle *devh = usb_open(dev);
+            if (!devh) {
+                // TODO notify permission problem
+                return NULL;
             }
 
-            libusb_free_config_descriptor(cfg_desc);
-        }
+            for (c = 0; c < dev->descriptor.bNumConfigurations; ++c) {
+                struct usb_config_descriptor *cfg = &dev->config[c];
 
-        return 0;
+                for (i = 0; i < cfg->bNumInterfaces; ++i) {
+                    struct usb_interface *intf = &cfg->interface[i];
+
+                    for (a = 0; a < intf->num_altsetting; ++a) {
+                        struct usb_interface_descriptor *idsc = &intf->altsetting[a];
+
+                        if (idsc->bInterfaceClass != USB_CLASS_HID)
+                            continue;
+
+                        ret = usb_get_driver_np(devh, i, name_buffer, 65535);
+                        if (!ret && name_buffer[0]) {
+                            ret = usb_detach_kernel_driver_np(devh, i);
+                            if (ret)
+                                return NULL;
+                        }
+
+                        int e = 0;
+                        while (usb_claim_interface(devh, i) && (e << 10)) {
+                            sleep(1);
+                            ++e;
+                        }
+
+                        return devh;
+                    }
+                }
+            }
+        }
     }
 
-    g35_devh = NULL;
-    return 1;
+    return NULL;
+}
+
+static usb_dev_handle *g35_open_device()
+{
+    int i;
+
+    for (i = 0; g35_devices[i].name != NULL; i++) {
+        g35_devh = g35_find_device(g35_devices[i]);
+
+        if (g35_devh)
+            break;
+    }
+
+    return g35_devh;
+}
+
+int g35_init_usb()
+{
+    usb_init();
+
+    if (!usb_find_busses())
+        return G35_OPEN_ERROR;
+    if (!usb_find_devices())
+        return G35_OPEN_ERROR;
+
+    g35_devh = g35_open_device();
+    if (!g35_devh)
+        return G35_OPEN_ERROR;
+
+    return G35_OK;
 }
 
 int g35_init()
 {
-    int res;
-    int i;
-    int size;
+    int ret = g35_init_usb();
 
-    if (usb_ctx != NULL)
-        return -1;
-
-    res = libusb_init(&usb_ctx);
-    if (res)
-        return res;
-
-    libusb_set_debug(usb_ctx, 3);
-
-    devc = libusb_get_device_list(usb_ctx, &dlist);
-    if (devc < 1)
-        return -1;
-
-    size = sizeof(g35_devices) / sizeof(G35DeviceRec);
-
-    for (i = 0; i < size; i++) {
-        if (!g35_device_proc(&g35_devices[i]))
-            break;
-    }
-
-    return 0;
+    return ret;
 }
 
 void g35_destroy()
 {
     if (g35_devh != NULL) {
-        libusb_release_interface(g35_devh, 0);
-        libusb_reset_device(g35_devh);
-        libusb_close(g35_devh);
+        usb_reset(g35_devh);
+        usleep(10000);
+        usb_close(g35_devh);
+        g35_devh = 0;
     }
 }
 
@@ -139,16 +144,14 @@ static void processG35KeyPressEvent(unsigned int *pressed_keys,
     }
 }
 
-int g35_keypressed(unsigned int *pressed_keys)
+int g35_keypressed(unsigned int *pressed_keys, unsigned int timeout)
 {
     unsigned char buffer[G35_KEYS_READ_LENGTH];
-    int transferred = 0;
+    int tx = 0;
 
-    libusb_interrupt_transfer(g35_devh,
-            G35_KEYS_ENDPOINT | LIBUSB_ENDPOINT_IN, buffer,
-            G35_KEYS_READ_LENGTH, &transferred, 0);
-
+    tx = usb_interrupt_read(g35_devh, G35_KEYS_ENDPOINT | USB_ENDPOINT_IN,
+            (char *)buffer, G35_KEYS_READ_LENGTH, timeout);
     processG35KeyPressEvent(pressed_keys, buffer);
 
-    return transferred;
+    return tx;
 }
