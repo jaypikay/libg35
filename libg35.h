@@ -1,5 +1,5 @@
-#ifndef _G35_H_
-#define _G35_H_
+#ifndef _LIBG35_H_
+#define _LIBG35_H_
 
 #ifdef __cplusplus
 extern "C"
@@ -45,4 +45,4 @@ int g35_keypressed(unsigned int *keys);
 }
 #endif
 
-#endif /* _G35_H_ */
+#endif /* _LIBG35_H_ */

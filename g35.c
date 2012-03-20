@@ -5,7 +5,7 @@
 
 #include <libusb-1.0/libusb.h>
 
-#include "g35.h"
+#include "libg35.h"
 
 static G35DeviceRec g35_devices[] = {
     {"Logitech G35 Headset", 0x046d, 0x0a15},
@@ -130,6 +130,12 @@ static void processG35KeyPressEvent(unsigned int *pressed_keys,
         if ((buffer[1] & 0x10) == G35_KEY_G3)
             *pressed_keys |= G35_KEY_G3;
     }
+    if (buffer[0] == G35_MIC_EVENT) {
+        if ((buffer[2] & 0x05) == G35_MIC_UNMUTE)
+            *pressed_keys |= G35_MIC_UNMUTE;
+        if ((buffer[2] & 0x15) == G35_MIC_MUTE)
+            *pressed_keys |= G35_MIC_MUTE;
+    }
 }
 
 int g35_keypressed(unsigned int *pressed_keys)
@@ -138,8 +144,14 @@ int g35_keypressed(unsigned int *pressed_keys)
     int transferred = 0;
     int ret = 0;
 
-    ret = libusb_interrupt_transfer(g35_devh, G35_KEYS_ENDPOINT | 0x80, buffer,
+    ret = libusb_interrupt_transfer(g35_devh,
+            G35_KEYS_ENDPOINT | LIBUSB_ENDPOINT_IN, buffer,
             G35_KEYS_READ_LENGTH, &transferred, 0);
+
+    int i;
+    for (i = 0; i < G35_KEYS_READ_LENGTH; i++) {
+        fprintf(stderr, "keys[%d] = 0x%2.2x\n", i, buffer[i]);
+    }
 
     processG35KeyPressEvent(pressed_keys, buffer);
 
