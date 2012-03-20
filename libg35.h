@@ -1,8 +1,6 @@
 #ifndef _G35_H_
 #define _G35_H_
 
-#include <stdint.h>
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -31,6 +29,11 @@ enum G35Keys {
     G35_KEY_G1                  = 1 << 0x02,
     G35_KEY_G2                  = 1 << 0x03,
     G35_KEY_G3                  = 1 << 0x04,
+};
+
+enum G35Microphone {
+    G35_MIC_UNMUTE              = 0x05,
+    G35_MIC_MUTE                = 0x15,
 };
 
 int g35_init();
