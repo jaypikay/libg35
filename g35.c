@@ -18,6 +18,7 @@ static libusb_device_handle *g35_devh;
 static ssize_t devc;
 static libusb_device **dlist;
 
+
 static int g35_device_proc(G35DevicePtr g35dev)
 {
     struct libusb_device_descriptor dev_desc;
@@ -142,16 +143,10 @@ int g35_keypressed(unsigned int *pressed_keys)
 {
     unsigned char buffer[G35_KEYS_READ_LENGTH];
     int transferred = 0;
-    int ret = 0;
 
-    ret = libusb_interrupt_transfer(g35_devh,
+    libusb_interrupt_transfer(g35_devh,
             G35_KEYS_ENDPOINT | LIBUSB_ENDPOINT_IN, buffer,
             G35_KEYS_READ_LENGTH, &transferred, 0);
-
-    int i;
-    for (i = 0; i < G35_KEYS_READ_LENGTH; i++) {
-        fprintf(stderr, "keys[%d] = 0x%2.2x\n", i, buffer[i]);
-    }
 
     processG35KeyPressEvent(pressed_keys, buffer);
 

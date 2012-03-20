@@ -38,8 +38,15 @@ enum G35Microphone {
 
 int g35_init();
 void g35_destroy();
-
 int g35_keypressed(unsigned int *keys);
+
+
+/* uinput */
+static int uinputfd = 0;
+
+int g35_uinput_init(const char *udev);
+int g35_uinput_destroy();
+int g35_uinput_write(unsigned int *keys);
 
 #ifdef __cplusplus
 }
