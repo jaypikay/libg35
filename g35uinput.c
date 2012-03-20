@@ -9,6 +9,7 @@
 
 #include "libg35.h"
 
+
 int g35_uinput_init(const char *udev)
 {
     struct uinput_user_dev uidev;
@@ -98,6 +99,8 @@ int g35_uinput_write(unsigned int *keys)
 
 int g35_uinput_destroy()
 {
+    if (!uinputfd)
+        return -1;
     if (ioctl(uinputfd, UI_DEV_DESTROY) < 0)
         return -1;
     return 0;
