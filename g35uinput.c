@@ -90,7 +90,6 @@ int g35_uinput_write(unsigned int *keys)
             ev.code = key_dispatcher(keys[i]);
             ev.value = 1;
             ret = write(uinputfd, &ev, sizeof(struct input_event));
-            fprintf(stderr, "%d ret=%d\n", uinputfd, ret);
         }
     }
 
