@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <string.h>
 #include <linux/input.h>
@@ -36,9 +37,9 @@ int g35_uinput_init(const char *udev)
     memset(&uidev, 0, sizeof(struct uinput_user_dev));
     snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "G35 Keys");
     uidev.id.bustype = BUS_USB;
-    uidev.id.vendor = 0x046d;
-    uidev.id.product = 0x0a15;
-    uidev.id.version = 0x110;
+    uidev.id.vendor = 0x1;
+    uidev.id.product = 0x1;
+    uidev.id.version = 4;
 
     ret = write(uinputfd, &uidev, sizeof(struct uinput_user_dev));
     if (ret < sizeof(struct uinput_user_dev))
@@ -82,7 +83,6 @@ int g35_uinput_write(unsigned int *keys)
     int ret = 0;
     int i;
 
-
     for (i = 0; i < G35_KEYS_READ_LENGTH; ++i) {
         if (keys[i] > 0) {
             unsigned int key = key_dispatcher(keys[i]);
@@ -92,11 +92,23 @@ int g35_uinput_write(unsigned int *keys)
             ev.type = EV_KEY;
             ev.code = key;
             ev.value = 1;
+            gettimeofday(&ev.time, NULL);
+            ret = write(uinputfd, &ev, sizeof(struct input_event));
+
+            ev.type = EV_SYN;
+            ev.code = SYN_REPORT;
+            ev.value = 0;
             ret = write(uinputfd, &ev, sizeof(struct input_event));
 
             memset(&ev, 0, sizeof(struct input_event));
             ev.type = EV_KEY;
             ev.code = key;
+            ev.value = 0;
+            gettimeofday(&ev.time, NULL);
+            ret = write(uinputfd, &ev, sizeof(struct input_event));
+
+            ev.type = EV_SYN;
+            ev.code = SYN_REPORT;
             ev.value = 0;
             ret = write(uinputfd, &ev, sizeof(struct input_event));
         }

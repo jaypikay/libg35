@@ -55,11 +55,12 @@ static usb_dev_handle *g35_find_device(G35DeviceRec g35dev)
                                 return NULL;
                         }
 
-                        int e = 0;
-                        while (usb_claim_interface(devh, i) && (e << 10)) {
-                            sleep(1);
-                            ++e;
-                        }
+                        int retries = 10;
+                        while ((ret = usb_claim_interface(devh, i)) != 0
+                                && retries-- > 0)
+                            usleep(50 * 1000);
+                        if (ret != 0)
+                            return NULL;
 
                         return devh;
                     }
