@@ -1,0 +1,25 @@
+Logitech G35 Headset support for Linux
+======================================
+
+This library provides support to handle the Logitech G35 Headset buttons. The
+library is required by g35d (https://github.com/jaypikay/g35d).
+
+Requirements
+------------
+
+* uinput
+
+* cmake (>= 2.6)
+
+Building
+--------
+
+To compile the project:
+
+    # cmake .
+    # make
+
+If everything went smoothly the application can be installed with (Default
+Prefix: /usr/local):
+
+    # make install
