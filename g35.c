@@ -141,10 +141,8 @@ void g35_destroy()
 static void processG35KeyPressEvent(unsigned int *pressed_keys,
         unsigned char *buffer)
 {
-    int i = 0;
-
     *pressed_keys = 0;
-    if (buffer[0] == G35_KEY_EVENT) {
+    if (buffer[0] == G35_EVENT_KEY) {
         if ((buffer[1] & 0x01) == G35_KEY_VOLUP)
             *pressed_keys |= G35_KEY_VOLUP;
         if ((buffer[1] & 0x02) == G35_KEY_VOLDOWN)
@@ -156,7 +154,7 @@ static void processG35KeyPressEvent(unsigned int *pressed_keys,
         if ((buffer[1] & 0x10) == G35_KEY_G3)
             *pressed_keys |= G35_KEY_G3;
     }
-    if (buffer[0] == G35_MIC_EVENT) {
+    if (buffer[0] == G35_EVENT_MIC) {
         if ((buffer[2] & 0x05) == G35_MIC_UNMUTE)
             *pressed_keys |= G35_MIC_UNMUTE;
         if ((buffer[2] & 0x15) == G35_MIC_MUTE)
@@ -166,7 +164,7 @@ static void processG35KeyPressEvent(unsigned int *pressed_keys,
 
 int g35_keypressed(unsigned int *pressed_keys, unsigned int timeout)
 {
-    unsigned char buffer[G35_KEYS_READ_LENGTH];
+    unsigned char buffer[G35_MAX_KEYS];
     int tx = 0;
 
     tx = usb_interrupt_read(g35_devh, G35_KEYS_ENDPOINT | USB_ENDPOINT_IN,

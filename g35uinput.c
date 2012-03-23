@@ -29,29 +29,36 @@
 
 #include "libg35.h"
 
+static int uinputfd = 0;
 
-int g35_uinput_init(const char *udev)
+static unsigned int g35_key_g1 = 0;
+static unsigned int g35_key_g2 = 0;
+static unsigned int g35_key_g3 = 0;
+static unsigned int g35_key_voldn = 0;
+static unsigned int g35_key_volup = 0;
+
+
+int g35_uinput_update_keymap(unsigned int *keymap)
 {
     struct uinput_user_dev uidev;
-    int ret;
+    int ret = 0, i;
 
-    if ((uinputfd = open(udev, O_WRONLY | O_NONBLOCK)) < 0) {
-        /* Unable to open uinput device */
-        return -1;
-    }
+    if (!uinputfd || !keymap)
+        return G35_UINPUT_ERROR;
+
+    g35_key_g1 = keymap[0];
+    g35_key_g2 = keymap[1];
+    g35_key_g3 = keymap[2];
+    g35_key_voldn = keymap[3];
+    g35_key_volup = keymap[4];
 
     if (ioctl(uinputfd, UI_SET_EVBIT, EV_KEY) < 0)
-        return -1;
-    if (ioctl(uinputfd, UI_SET_KEYBIT, KEY_VOLUMEDOWN) < 0)
-        return -1;
-    if (ioctl(uinputfd, UI_SET_KEYBIT, KEY_VOLUMEUP) < 0)
-        return -1;
-    if (ioctl(uinputfd, UI_SET_KEYBIT, KEY_NEXTSONG) < 0)
-        return -1;
-    if (ioctl(uinputfd, UI_SET_KEYBIT, KEY_PLAYPAUSE) < 0)
-        return -1;
-    if (ioctl(uinputfd, UI_SET_KEYBIT, KEY_PREVIOUSSONG) < 0)
-        return -1;
+        return G35_UINPUT_ERROR;
+
+    for (i = 0; i < G35_MAX_KEYS; ++i) {
+        if (ioctl(uinputfd, UI_SET_KEYBIT, keymap[i]) < 0)
+            return G35_UINPUT_ERROR;
+    }
 
     memset(&uidev, 0, sizeof(struct uinput_user_dev));
     snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "G35 Keys");
@@ -62,86 +69,90 @@ int g35_uinput_init(const char *udev)
 
     ret = write(uinputfd, &uidev, sizeof(struct uinput_user_dev));
     if (ret < sizeof(struct uinput_user_dev))
-        return -1;
+        return G35_UINPUT_ERROR;
+
+    return G35_OK;
+}
+
+int g35_uinput_init(const char *udev, unsigned int *keymap)
+{
+    if ((uinputfd = open(udev, O_WRONLY | O_NONBLOCK)) < 0)
+        return G35_UINPUT_ERROR;
+
+    if (g35_uinput_update_keymap(keymap) != G35_OK)
+        return G35_UINPUT_ERROR;
 
     if (ioctl(uinputfd, UI_DEV_CREATE) < 0)
-        return -1;
+        return G35_UINPUT_ERROR;
     
-    return 0;
+    return G35_OK;
 }
 
 static unsigned int key_dispatcher(unsigned int key)
 {
-    // TODO: dynamicly assigned keys
     switch (key) {
         case G35_KEY_VOLDOWN:
-            fprintf(stderr, "G35_KEY_VOLDOWN pressed\n");
-            return KEY_VOLUMEDOWN;
+            return g35_key_voldn;
         case G35_KEY_VOLUP:
-            fprintf(stderr, "G35_KEY_VOLUP pressed\n");
-            return KEY_VOLUMEUP;
+            return g35_key_volup;
         case G35_KEY_G1:
-            fprintf(stderr, "G35_KEY_G1 pressed\n");
-            return KEY_NEXTSONG;
+            return g35_key_g1;
         case G35_KEY_G2:
-            fprintf(stderr, "G35_KEY_G2 pressed\n");
-            return KEY_PLAYPAUSE;
+            return g35_key_g2;
         case G35_KEY_G3:
-            fprintf(stderr, "G35_KEY_G3 pressed\n");
-            return KEY_PREVIOUSSONG;
-        default:
-            return 0;
+            return g35_key_g3;
     }
 
-    return 0;
+    return G35_OK;
+}
+
+static int write_keypress(unsigned int key, unsigned char key_state)
+{
+    struct input_event ev;
+    int ret;
+
+    memset(&ev, 0, sizeof(struct input_event));
+    ev.type = EV_KEY;
+    ev.code = key;
+    ev.value = key_state;
+    gettimeofday(&ev.time, NULL);
+    ret = write(uinputfd, &ev, sizeof(struct input_event));
+
+    if (ret) {
+        ev.type = EV_SYN;
+        ev.code = SYN_REPORT;
+        ev.value = 0;
+        ret = write(uinputfd, &ev, sizeof(struct input_event));
+    } else {
+        return G35_UINPUT_ERROR;
+    }
+
+    return G35_OK;
 }
 
 int g35_uinput_write(unsigned int *keys)
 {
-    struct input_event ev;
-    int ret = 0;
     int i;
 
     for (i = 0; i < G35_KEYS_READ_LENGTH; ++i) {
         if (keys[i] > 0) {
             unsigned int key = key_dispatcher(keys[i]);
-            fprintf(stderr, "key_code = %d\n", key);
-
-            memset(&ev, 0, sizeof(struct input_event));
-            ev.type = EV_KEY;
-            ev.code = key;
-            ev.value = 1;
-            gettimeofday(&ev.time, NULL);
-            ret = write(uinputfd, &ev, sizeof(struct input_event));
-
-            ev.type = EV_SYN;
-            ev.code = SYN_REPORT;
-            ev.value = 0;
-            ret = write(uinputfd, &ev, sizeof(struct input_event));
-
-            memset(&ev, 0, sizeof(struct input_event));
-            ev.type = EV_KEY;
-            ev.code = key;
-            ev.value = 0;
-            gettimeofday(&ev.time, NULL);
-            ret = write(uinputfd, &ev, sizeof(struct input_event));
-
-            ev.type = EV_SYN;
-            ev.code = SYN_REPORT;
-            ev.value = 0;
-            ret = write(uinputfd, &ev, sizeof(struct input_event));
+            write_keypress(key, KEY_PRESSED);
+            write_keypress(key, KEY_RELEASED);
         }
     }
 
-    return ret;
+    return G35_OK;
 }
 
 int g35_uinput_destroy()
 {
     if (!uinputfd)
-        return -1;
+        return G35_UINPUT_ERROR;
     if (ioctl(uinputfd, UI_DEV_DESTROY) < 0)
-        return -1;
+        return G35_UINPUT_ERROR;
     close(uinputfd);
-    return 0;
+    uinputfd = 0;
+
+    return G35_OK;
 }
