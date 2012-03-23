@@ -122,7 +122,7 @@ static int write_keypress(unsigned int key, unsigned char key_state)
         ev.type = EV_SYN;
         ev.code = SYN_REPORT;
         ev.value = 0;
-        ret = write(uinputfd, &ev, sizeof(struct input_event));
+        write(uinputfd, &ev, sizeof(struct input_event));
     } else {
         return G35_UINPUT_ERROR;
     }
