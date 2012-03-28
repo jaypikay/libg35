@@ -17,6 +17,16 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+/** \file g35.c
+ * \brief G35 support library to communicate with the device.
+ *
+ * The libg35 provides methods to handle the G35 USB interface. In order to use
+ * the G35 headset. The device itself has to be initialised and the USB
+ * endpoint needs to be claimed. This is done be calling g35_init(). All events
+ * by the G35 HID are handled by g35_keypressed(). To free the resources and
+ * close the connection to the G35 the function g35_destroy() is called.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,14 +36,27 @@
 
 #include "libg35.h"
 
+/** Known and supported devices by libg35 */
 static G35DeviceRec g35_devices[] = {
     {"Logitech G35 Headset", 0x046d, 0x0a15},
     { },
 };
 
-static usb_dev_handle *g35_devh;
+static usb_dev_handle *g35_devh; //! G35 USB device handle
 
 
+/** \fn usb_dev_handle *g35_find_device(G35DeviceRec g35dev)
+ * \brief Locate and claim G35 USB HID.
+ *
+ * This function will walk through all connected USB devices to identify the
+ * first supported device listed in g35_devices.
+ * \sa g35_devices
+ *
+ * \param[in]   g35dev      G35 device record of supported device
+ *
+ * \return usb_dev_handle on success
+ * \return NULL on error
+ */
 static usb_dev_handle *g35_find_device(G35DeviceRec g35dev)
 {
     int c, i, a;
@@ -64,9 +87,11 @@ static usb_dev_handle *g35_find_device(G35DeviceRec g35dev)
                     for (a = 0; a < intf->num_altsetting; ++a) {
                         struct usb_interface_descriptor *idsc = &intf->altsetting[a];
 
+                        /// Ignore the device if it is not of class HID.
                         if (idsc->bInterfaceClass != USB_CLASS_HID)
                             continue;
 
+                        /// If the device is attached to the kernel, detach it.
                         ret = usb_get_driver_np(devh, i, name_buffer, 65535);
                         if (!ret && name_buffer[0]) {
                             ret = usb_detach_kernel_driver_np(devh, i);
@@ -74,6 +99,7 @@ static usb_dev_handle *g35_find_device(G35DeviceRec g35dev)
                                 return NULL;
                         }
 
+                        /// Try to claim the device 10 times, otherwise abort.
                         int retries = 10;
                         while ((ret = usb_claim_interface(devh, i)) != 0
                                 && retries-- > 0)
@@ -91,6 +117,15 @@ static usb_dev_handle *g35_find_device(G35DeviceRec g35dev)
     return NULL;
 }
 
+/** \fn usb_dev_handle *g35_open_device()
+ * \brief open usb device
+ *
+ * Will try to locate and open the USB device and return the result of
+ * g35_find_device().
+ *
+ * \return usb_dev_handle on success
+ * \return NULL on error
+ */
 static usb_dev_handle *g35_open_device()
 {
     int i;
@@ -105,7 +140,15 @@ static usb_dev_handle *g35_open_device()
     return g35_devh;
 }
 
-int g35_init_usb()
+/** \fn int g35_init_usb()
+ * \brief Helper function, called by g35_init().
+ *
+ * Initialize USB library and claim device.
+ *
+ * \return G35_OK on success
+ * \return G35_OPEN_ERROR on error
+ */
+static int g35_init_usb()
 {
     usb_init();
 
@@ -121,6 +164,18 @@ int g35_init_usb()
     return G35_OK;
 }
 
+/** \fn int g35_init()
+ * \brief Initializes the first supported USB device.
+ *
+ * This function takes no parameters and will initialise the G35 support
+ * library. The first supported device is opened and claimed by the library. To
+ * free and close the claimed device g35_destroy() is called.
+ * 
+ * \sa g35_destroy()
+ *
+ * \return G35_OK on success
+ * \return G35_OPEN_ERROR on error
+ */
 int g35_init()
 {
     int ret = g35_init_usb();
@@ -128,6 +183,13 @@ int g35_init()
     return ret;
 }
 
+/** \fn void g35_destroy()
+ * \brief Free and close the claimed USB device.
+ *
+ * To clean up the library resources and make the device end point accassible
+ * for other programs again this function will close all open handles and
+ * resets the device.
+ */
 void g35_destroy()
 {
     if (g35_devh != NULL) {
@@ -138,6 +200,15 @@ void g35_destroy()
     }
 }
 
+/** \fn void processG35KeyPressEvent(unsigned int *pressed_keys, unsigned char *buffer)
+ * \brief Convert the raw input buffer into a bit map of button events.
+ *
+ * Reads the input buffer and extracts the information about all pressed
+ * buttons. The information is stored as bitmap in pressed_keys.
+ *
+ * \param[out]  pressed_keys    store the pressed buttons
+ * \param[in]   buffer          raw button event buffer read from USB device
+ */
 static void processG35KeyPressEvent(unsigned int *pressed_keys,
         unsigned char *buffer)
 {
@@ -162,6 +233,18 @@ static void processG35KeyPressEvent(unsigned int *pressed_keys,
     }
 }
 
+/** \fn int g35_keypressed(unsigned int *pressed_keys, unsigned int timeout)
+ * \brief Read raw button events and convert them into a key press event map.
+ *
+ * This function will read the raw key press events send by the G35 buttons and
+ * converts them into keypress events libg35 can handle. The read buffer can
+ * hold up to G35_MAX_KEYS events.
+ *
+ * \param[out]  pressed_keys    store the pressed buttons
+ * \param[in]   timeout         milliseconds until read will timeout
+ *
+ * \return tx number of bytes read from the USB interface
+ */
 int g35_keypressed(unsigned int *pressed_keys, unsigned int timeout)
 {
     unsigned char buffer[G35_MAX_KEYS];

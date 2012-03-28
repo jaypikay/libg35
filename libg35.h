@@ -51,12 +51,26 @@ extern "C"
 #define KEY_PRESSED             1
 #define KEY_RELEASED            0
 
-    typedef struct {
+    /** \struct g35_device_t
+     * \brief G35 device structure
+     * 
+     * Structure to store the device identification for the supported devices.
+     * There are two type definitions of this structure available: G35DeviceRec
+     * as struct g35_device_t and G35DevicePtr.as pointer of struct
+     * g35_device_t.
+     */
+    typedef struct g35_device_t {
+        /// device name
         char *name;
+        /// USB device vendor identification
         uint16_t vendor_id;
+        /// USB device product identification
         uint16_t product_id;
     } G35DeviceRec, *G35DevicePtr;
 
+    /** \enum G35Keys
+     * Raw button event codes.
+     */
     enum G35Keys {
         G35_KEY_VOLUP               = 1 << 0x00,
         G35_KEY_VOLDOWN             = 1 << 0x01,
@@ -66,6 +80,9 @@ extern "C"
         G35_KEY_G3                  = 1 << 0x04,
     };
 
+    /** \enum G35Microphone
+     * Raw microphone events.
+     */
     enum G35Microphone {
         G35_MIC_UNMUTE              = 0x05,
         G35_MIC_MUTE                = 0x15,

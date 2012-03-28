@@ -17,6 +17,10 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+/** \file g35uinput.c
+ * UINPUT library functions for key event injection.
+ */
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -38,6 +42,16 @@ static unsigned int g35_key_voldn = 0;
 static unsigned int g35_key_volup = 0;
 
 
+/** \fn int g35_uinput_update_keymap(unsigned int *keymap)
+ * \brief Re-assign button events with uinput key events.
+ *
+ * The G35 buttons are mapped to a uinput key event.
+ *
+ * \param       keymap      keymap will store the new assigned key event codes
+ *
+ * \return G35_OK on success
+ * \return G35_UINPUT_ERROR on error
+ */
 int g35_uinput_update_keymap(unsigned int *keymap)
 {
     struct uinput_user_dev uidev;
@@ -130,6 +144,15 @@ static int write_keypress(unsigned int key, unsigned char key_state)
     return G35_OK;
 }
 
+/** \fn int g35_uinput_write(unsigned int *keys)
+ * \brief write key press event to uinput device.
+ *
+ * The read button events from the USB device are translated into uinput key
+ * events using the keymap stored in keys, defined by
+ * g35_uinput_update_keymap() and will write them to the UINPUT device.
+ *
+ * \return G35_OK on success
+ */
 int g35_uinput_write(unsigned int *keys)
 {
     int i;
@@ -145,6 +168,14 @@ int g35_uinput_write(unsigned int *keys)
     return G35_OK;
 }
 
+/** \fn int g35_uinput_destroy()
+ * \brief Close the uinput device.
+ *
+ * Closes the open uinput device handle and resets interal resources.
+ *
+ * \return G35_OK on success
+ * \return G35_UINPUT_ERROR on error
+ */
 int g35_uinput_destroy()
 {
     if (!uinputfd)
