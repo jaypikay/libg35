@@ -69,13 +69,19 @@ int g35_uinput_update_keymap(unsigned int *keymap)
     if (ioctl(uinputfd, UI_SET_EVBIT, EV_KEY) < 0)
         return G35_UINPUT_ERROR;
 
+    /* Enable all keys */
+    for (i = 0; i < 0xff; ++i) {
+        if (ioctl(uinputfd, UI_SET_KEYBIT, i) < 0)
+            return G35_UINPUT_ERROR;
+    }
+    /* Set the actual keymap */
     for (i = 0; i < G35_MAX_KEYS; ++i) {
         if (ioctl(uinputfd, UI_SET_KEYBIT, keymap[i]) < 0)
             return G35_UINPUT_ERROR;
     }
 
     memset(&uidev, 0, sizeof(struct uinput_user_dev));
-    snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "G35 Keys");
+    snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "Logitech G35 Headset Buttons");
     uidev.id.bustype = BUS_USB;
     uidev.id.vendor = 0x1;
     uidev.id.product = 0x1;
