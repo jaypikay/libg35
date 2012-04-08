@@ -193,8 +193,6 @@ int g35_init()
 void g35_destroy()
 {
     if (g35_devh != NULL) {
-        usb_reset(g35_devh);
-        usleep(10000);
         usb_close(g35_devh);
         g35_devh = 0;
     }
