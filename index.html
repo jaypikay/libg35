@@ -34,7 +34,7 @@
         <h3>Logitech G35 Headset - Linux Support Library</h3>
 
 <p>
-This library provides support to handle the Logitech G35 Headset buttons. The library is required by <a href="http://jaypikay.github.com/g35d">g35d</a> the user-space daemon. The library provides the necessary functions to claim and control the G35 Headset HID and will send the pressed buttons to the <code>uinput</code> device. There are three macro buttons (G1, G2, and G3) and a microphone event (changing the arm position or pressing the mute button) to assign a button press event to.
+This library provides support to handle the Logitech G35 Headset buttons. The library is required by <code><a href="http://jaypikay.github.com/g35d">g35d</a></code> the user-space daemon. The library provides the necessary functions to claim and control the G35 Headset HID and will send the pressed buttons to the <code>uinput</code> device. There are three macro buttons (G1, G2, and G3) and a microphone event (changing the arm position or pressing the mute button) to assign a button press event to.
 
 <h3>Requirements</h3>
 <ul>
@@ -43,19 +43,17 @@ This library provides support to handle the Logitech G35 Headset buttons. The li
 </ul>
 
 <h3>Getting the code</h3>
-Either download one of the archive formats from the top, or clone the git repository
+Either download one of the archive formats from the top, or clone the git repository:
 <pre></code>$ git clone https://github.com/jaypikay/libg35.git
 </code></pre>
 
 <h3>Building</h3>
 To compile the project change into the source directory and execute:
-
 <pre><code>$ cmake .
 $ make
 </code></pre>
 
-If everything went smoothly the application can be installed with (Default Prefix: /usr/local):
-
+If everything went smoothly the application can be installed with (Default Prefix: <code>/usr/local</code>):
 <pre><code>$ make install
 </code></pre>
 
